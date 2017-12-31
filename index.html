@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Phaser Workshop - lesson 01: Initialize the framework</title>
+    <style>
+    * {
+        padding: 0;
+        margin: 0;
+    }
+    </style>
+    <script src="js/phaser.min.js"></script>
+</head>
+
+<body>
+    <script>
+    setTimeout(function() {
+        var game = new Phaser.Game(1280, 720, Phaser.AUTO, null, { preload: preload, create: create, update: update });
+        var worldPadding = 80;
+        var wayPoints = [];
+        var wayWidth = 50;
+        var sidebarWidth = 250
+
+        var textures = {};
+
+        var castle;
+        var castleHPText;
+
+        var towers;
+        var towerRange = 100;
+        var towerSize = towerRange * 0.32;
+        var towerAttack = 2;
+
+        var enemies;
+        var enemiesData = {};
+        enemiesData.margin = 20;
+        enemiesData.size = 20;
+        enemiesData.speed = 2400 / (0.8 * enemiesData.size);
+        enemiesData.hp = 5 * enemiesData.size;
+
+        var wave = 0;
+        var nextWaveTimeout = 1;
+
+        var gold = 0;
+        var goldText;
+
+        function preload() {
+            game.scale.scaleMode = Phaser.ScaleManager.NO_SCALE;
+            game.scale.pageAlignHorizontally = true;
+            game.scale.pageAlignVertically = true;
+            game.stage.backgroundColor = '#eee';
+        }
+
+        function create() {
+            game.physics.startSystem(Phaser.Physics.ARCADE);
+
+            initTextures();
+            initWayPoints();
+            initCastle();
+            initTowers();
+            initEnemies();
+            startNextWave();
+            initSidebar();
+        }
+
+        function update() {
+            game.physics.arcade.overlap(towers, enemies, attackEnemies, checkTrueOverlapping);
+            //game.physics.arcade.overlap(castle, enemies, attackCastle);
+        }
+
+        function checkTrueOverlapping(tower, enemy) {
+            var overlapped = game.physics.arcade.distanceBetween(tower, enemy) < towerRange + enemy.size / 2;
+            if (tower.focusedEnemy === enemy && !overlapped)
+                tower.focusedEnemy = null;
+            return overlapped;
+        }
+
+        function attackEnemies(tower, enemy) {
+            if (enemy.focusable)
+                tower.focusedEnemy = tower.focusedEnemy || enemy;
+            else
+                return;
+
+            if (tower.focusedEnemy !== enemy)
+                return;
+            enemy.hp -= towerAttack;
+            if (enemy.hp <= 0) {
+                gold += enemy.size;
+                goldText.setText(gold);
+                tower.focusedEnemy = null;
+                killEnemy(enemy);
+            }
+        }
+
+        function killEnemy(enemy) {
+            enemy.focusable = false;
+            var killTween = game.add.tween(enemy);
+            killTween.to({ width: 2 * enemy.size, height: 2 * enemy.size, alpha: 0 }, 200, Phaser.Easing.Linear.None);
+            killTween.onComplete.addOnce(function() {
+                enemy.kill();
+                enemies.remove(enemy);
+                if (!enemies.total)
+                    setTimeout(startNextWave, 1000 * nextWaveTimeout);
+            }, this);
+            killTween.start();
+        }
+
+        function attackCastle(enemy) {
+            castle.hp -= enemy.hp;
+            castleHPText.setText('Castle HP: ' + castle.hp);
+            killEnemy(enemy);
+            if (castle.hp <= 0)
+                gameOver();
+        }
+
+        function initCastle() {
+            castle = game.add.sprite(wayPoints[wayPoints.length - 1].x, wayPoints[wayPoints.length - 1].y, textures.castle);
+            castle.anchor.set(0.5);
+            game.physics.enable(castle, Phaser.Physics.ARCADE);
+
+            castle.hp = 1000;
+        }
+
+        function initTowers() {
+            towers = game.add.group();
+            for (var i = 0; i < 2; i++) {
+                var newTower = game.add.sprite(wayPoints[0].x + (wayWidth / 2 + towerSize / 2), 150 + i * 250, textures.tower);
+                newTower.anchor.set(0.5);
+                game.physics.enable(newTower, Phaser.Physics.ARCADE);
+                towers.add(newTower);
+            }
+        }
+
+        function initEnemies() {
+            enemies = game.add.group();
+        }
+
+        function startNextWave() {
+            wave++;
+            for (var i = 0; i < 2 + wave; i++) {
+                var newEnemy = game.add.sprite(sidebarWidth + worldPadding, -worldPadding - i * (enemiesData.size / 2 + enemiesData.margin), textures.enemy);
+                newEnemy.anchor.set(0.5);
+                game.physics.enable(newEnemy, Phaser.Physics.ARCADE);
+                enemies.add(newEnemy);
+
+                function move(enemy, i) {
+                    if (i >= wayPoints.length) {
+                        attackCastle(enemy);
+                        return;
+                    }
+                    var moveTween = game.add.tween(enemy);
+                    moveTween.to({ x: wayPoints[i].x, y: wayPoints[i].y },
+                        game.physics.arcade.distanceBetween(enemy, wayPoints[i]) / enemiesData.speed * 1000,
+                        Phaser.Easing.Linear.None);
+                    moveTween.onComplete.addOnce(function() {
+                        move(enemy, ++i)
+                    }, this);
+                    moveTween.start();
+                }
+
+                move(newEnemy, 0);
+
+                newEnemy.hp = enemiesData.hp;
+                newEnemy.size = enemiesData.size;
+                newEnemy.focusable = true;
+            }
+        }
+
+        function initWayPoints() {
+            wayPoints.push(new Phaser.Point(sidebarWidth + worldPadding, worldPadding));
+            wayPoints.push(new Phaser.Point(sidebarWidth + worldPadding, game.world.height - worldPadding));
+            wayPoints.push(new Phaser.Point(sidebarWidth / 2 + game.world.centerX, game.world.height - worldPadding));
+            wayPoints.push(new Phaser.Point(sidebarWidth / 2 + game.world.centerX, worldPadding));
+            wayPoints.push(new Phaser.Point(game.world.width - worldPadding, worldPadding));
+            wayPoints.push(new Phaser.Point(game.world.width - worldPadding, game.world.height - worldPadding));
+
+            var color = 'rgba(255,157,13,0.1)';
+            var wayBmpData = game.add.bitmapData(game.world.width, game.world.height);
+
+            wayBmpData.line(wayPoints[0].x, 0, wayPoints[1].x, wayPoints[1].y + wayWidth / 2, color, wayWidth);
+            wayBmpData.line(wayPoints[3].x, wayPoints[3].y - wayWidth / 2, wayPoints[2].x, wayPoints[2].y + wayWidth / 2, color, wayWidth);
+            wayBmpData.line(wayPoints[4].x, wayPoints[4].y - wayWidth / 2, wayPoints[5].x, wayPoints[5].y, color, wayWidth);
+
+            wayBmpData.line(wayPoints[1].x - wayWidth / 2, wayPoints[1].y, wayPoints[2].x + wayWidth / 2, wayPoints[2].y, color, wayWidth);
+            wayBmpData.line(wayPoints[3].x - wayWidth / 2, wayPoints[3].y, wayPoints[4].x + wayWidth / 2, wayPoints[4].y, color, wayWidth);
+            game.add.sprite(0, 0, wayBmpData);
+        }
+
+        function initSidebar() {
+            var sidebarBmpData = game.add.bitmapData(sidebarWidth, game.world.height);
+            var color = '#fff';
+            sidebarBmpData.rect(0, 0, sidebarWidth, game.world.height, color);
+            var sidebar = game.add.sprite(0, 0, sidebarBmpData);
+            var sidebarPadding = 30;
+            var row = 0;
+
+            var fontO = { font: '18px Arial', fill: 'rgba(76,178,255,1)' };
+
+            var gameName = game.add.text(sidebarWidth / 2, sidebarPadding, 'TowerDefence', fontO);
+            row++;
+            gameName.anchor.set(0.5);
+
+            castleHPText = addText('Castle HP: ' + castle.hp);
+
+            game.add.sprite(sidebarPadding, sidebarPadding + row * 18 * 2.5 - 4, textures.gold).anchor.set(0, 0.5);
+            goldText = addText('0', textures.coinSize * 2);
+
+            function addText(string, x) {
+                x = x == undefined ? 0 : x;
+                var text = game.add.text(sidebarPadding + x, sidebarPadding + row * 18 * 2.5, string, fontO);
+                row++;
+                text.anchor.set(0, 0.5);
+                return text;
+            }
+        }
+
+        function initTextures() {
+            // Castle
+            var castleColor = '#132C40';
+            textures.castle = game.add.bitmapData(wayWidth, wayWidth);
+            textures.castle.rect(0, 0, wayWidth, wayWidth, castleColor);
+            // Tower
+            textures.tower = game.add.bitmapData(towerRange * 2, towerRange * 2);
+            textures.tower.circle(towerRange, towerRange, towerRange, 'rgba(76,178,255,0.1)');
+            textures.tower.rect(towerRange - towerSize / 2, towerRange - towerSize / 2, towerSize, towerSize, 'rgba(76,178,255,1)');
+            // GoldCoin
+            textures.coinSize = 15;
+            var goldColor = "#ffcf40";
+            textures.gold = game.add.bitmapData(textures.coinSize, textures.coinSize);
+            textures.gold.circle(textures.coinSize / 2, textures.coinSize / 2, textures.coinSize / 2, goldColor);
+            // Enemy
+            textures.enemy = game.add.bitmapData(enemiesData.size, enemiesData.size);
+            textures.enemy.circle(enemiesData.size / 2, enemiesData.size / 2, enemiesData.size / 2, 'rgba(255,157,13,1)');
+        }
+
+        function gameOver() {
+            alert('You lose! Castle HP = ' + castle.hp);
+            location.reload();
+        }
+    }, 2000);
+    </script>
+</body>
+
+</html>
