@@ -1,2 +1,2 @@
 # TowerDefenceGame
-<a href="https://github.com/nshaikhinurov/TowerDefenceGame">Play game</a>
+<a href="https://nshaikhinurov.github.io/TowerDefenceGame/">Play game</a>
