@@ -8,6 +8,7 @@ var baseTowerInfo = {
 };
 baseTowerInfo.size = baseTowerInfo.range * 0.32;
 
+// TODO: why don't set them into the object directly?
 var baseEnemyInfo = {};
 baseEnemyInfo.margin = 20;
 baseEnemyInfo.size = 20;
@@ -18,7 +19,9 @@ var enemyN = 0;
 
 var r = 1, R = 3; // dot radiuses
 
+// TODO: extra line at the end of the function
 function initCastle() {
+    // TODO: wayPoints[wayPoints.length - 1] calculates twice
     var castle = game.add.sprite(wayPoints[wayPoints.length - 1].x, wayPoints[wayPoints.length - 1].y, textures.castle);
     castle.anchor.set(0.5);
 
@@ -33,12 +36,14 @@ function initCastle() {
             this.HPText.setText("Castle HP:" + this.hp.toFixed());
         }
     });
+    // TODO: TD is defined in a different file, that's weird, the link is not obvious
     TD.castle = castle;
 
 }
 
+// TODO: extra line at the beginning of the function
 function initTowers() {
-
+    
     var towers = game.add.group();
     var towerN = 0;
 
@@ -60,6 +65,8 @@ function initTowers() {
 }
 
 function setWayPoints() {
+    // TODO: to replace it with array and go over it
+    // TODO: new is required?
     wayPoints.push(new Phaser.Point(styles.sidebarWidth + styles.worldPadding, styles.worldPadding));
     wayPoints.push(new Phaser.Point(styles.sidebarWidth + styles.worldPadding, game.world.height - styles.worldPadding));
     wayPoints.push(new Phaser.Point(styles.sidebarWidth / 2 + game.world.centerX, game.world.height - styles.worldPadding));
@@ -76,6 +83,7 @@ function initSidebar() {
     game.add.sprite(0, 0, textures.sidebar);
     var row = 0;
 
+    // TODO: to place in CSS file
     var fontO = {font: '18px Arial', fill: 'rgba(76,178,255,1)'};
 
     var gameName = game.add.text(styles.sidebarWidth / 2, styles.sidebarPadding, 'TowerDefence', fontO);
@@ -132,6 +140,7 @@ function initEnemy(x, y, info) {
             size++;
         info.size = size;
 
+        // TODO: function must go before the code which uses it, check it everywhere
         function isOdd(x) {
             return math.mod(x, 2) != 0;
         }
@@ -163,6 +172,8 @@ function createTextures() {
     }
 
     // Castle
+    // TODO: is it a way to put styles in CSS?
+    // TODO: if not, place all the colours, parameters to an object in styles.js and use it from there
     var castleColor = '#132C40';
     var castleRadius = 20;
     textures.castle = game.add.bitmapData(castleRadius * 2, castleRadius * 2);

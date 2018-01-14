@@ -4,12 +4,14 @@
 <head>
     <meta charset="utf-8"/>
     <title>TD</title>
+    <!-- TODO: to get rid of the code like that, put it to a different CSS file -->
     <style>
         * {
             padding: 0;
             margin: 0;
         }
     </style>
+    <!-- TODO: if you don't use build tools, use CDN link instead like the next line -->
     <script src="https://github.com/photonstorm/phaser-ce/releases/download/v2.9.4/phaser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.18.1/math.min.js"></script>
     <script src="js/styles.js"></script>
@@ -17,13 +19,18 @@
 </head>
 
 <body>
+<!-- TODO: to put the code to a different JS file -->
 <script>
+    // TODO: if you use ES5, 'use strict' and the beginning of the file
+    // TODO: to use only let and const instead of var
     var game = new Phaser.Game(1280, 720, Phaser.AUTO, null, {
         preload: preload,
         create: create,
         update: update
     });
 
+    // TODO: to replace with arrow function
+    // TODO: to get rid of this for functional-based style
     var TD = new function () {
         var gold;
         var wave;
@@ -54,11 +61,9 @@
         }
     };
 
+    // TODO: in ES5 it's safer to put all variables before the functions
     var wayPoints = [];
-
     var textures = {};
-
-
     var buildingTower;
     var isBuildingTower;
 
@@ -95,6 +100,7 @@
         }
     }
 
+    // TODO: functions' names should be clear and mirrors the meaning, i.e. doesTowerSeeEnemy or isEnemyVisibleForTower
     function checkTrueOverlapping(tower, enemy) {
         var overlapped = game.physics.arcade.distanceBetween(tower, enemy) < tower.range + enemy.size / 2;
         if (tower.focusedEnemy === enemy && !overlapped)
@@ -103,6 +109,7 @@
     }
 
     function attackEnemies(tower, enemy) {
+        // TODO: to add brackets even for one-line if ans else branches (not only for if-else clause)
         if (enemy.focusable)
             tower.focusedEnemy = tower.focusedEnemy || enemy;
         else
@@ -110,9 +117,10 @@
 
         if (tower.focusedEnemy !== enemy)
             return;
+
         enemy.hp -= tower.attack;
-        console.log(enemy.name + ' attacked by ' + tower.name + ': -' +
-            tower.attack);
+        // TODO: console.log shouldn't be placed in your production version
+        console.log(enemy.name + ' attacked by ' + tower.name + ': -' + tower.attack);
         if (enemy.hp <= 0) {
             TD.gold += enemy.fullHp * 0.05;
             tower.focusedEnemy = null;
@@ -127,8 +135,7 @@
             var lifebar = enemy.lifebar;
             lifebar.x = enemy.x;
             lifebar.y = enemy.y;
-            lifebar.width = lifebar.height = (enemy.size * 0.5) * enemy.hp /
-                enemy.fullHp;
+            lifebar.width = lifebar.height = (enemy.size * 0.5) * enemy.hp / enemy.fullHp;
         }
     }
 
@@ -143,9 +150,14 @@
             }
             if (areCrossesEnabled) {
                 var cross = tower.tcross;
-                cross.x = tower.focusedEnemy ? tower.focusedEnemy.x -
-                    baseEnemyInfo.size / 2 : tower.x;
-                cross.y = tower.focusedEnemy ? tower.focusedEnemy.y : tower.y;
+                // TODO: to set your js and css style, check linters, i.e. ESLint for js
+                // TODO: ternary operator ?: should have its branches on the next lines
+                cross.x = tower.focusedEnemy 
+                    ? tower.focusedEnemy.x - baseEnemyInfo.size / 2 
+                    : tower.x;
+                cross.y = tower.focusedEnemy 
+                    ? tower.focusedEnemy.y 
+                    : tower.y;
             }
         }
     }
@@ -186,9 +198,17 @@
         for (var i = 0; waveEnergy > 0; i++) {
             var creepInfo = generateCreep();
 
-            var newEnemy = initEnemy(styles.sidebarWidth + styles.worldPadding,
-                -styles.worldPadding - i * (creepInfo.size / 2 +
-                creepInfo.margin), creepInfo);
+            /* 
+             * TODO: for the readability, use (
+             *     parameters     
+             * )
+             * TODO: also think of dangling comma, it's suitable for code editing
+             */
+            var newEnemy = initEnemy(
+                styles.sidebarWidth + styles.worldPadding,
+                -styles.worldPadding - i * (creepInfo.size / 2 + creepInfo.margin), 
+                creepInfo
+            );
             game.physics.enable(newEnemy, Phaser.Physics.ARCADE);
 
             TD.enemies.add(newEnemy);
@@ -200,20 +220,25 @@
             move(newEnemy);
         }
 
+        // TODO: do not do that (ESLint prevents it)
         enemyN = 0;
 
         function move(enemy, i) {
+            // TODO: check ES6 default parameters
             i = i === undefined ? 0 : i;
             if (i >= wayPoints.length) {
                 attackCastle(enemy);
                 return;
             }
+            
             var moveTween = game.add.tween(enemy);
             enemy.moveTween = moveTween;
-            moveTween.to({x: wayPoints[i].x, y: wayPoints[i].y},
-                game.physics.arcade.distanceBetween(enemy, wayPoints[i]) /
-                enemy.speed * 1000,
-                Phaser.Easing.Linear.None);
+            // TODO: it's not readable at all, try this
+            moveTween.to(
+                { x: wayPoints[i].x, y: wayPoints[i].y }, 
+                game.physics.arcade.distanceBetween(enemy, wayPoints[i]) / enemy.speed * 1000, 
+                Phaser.Easing.Linear.None
+            );
             moveTween.onComplete.addOnce(function () {
                 move(enemy, ++i)
             }, this);
@@ -224,6 +249,7 @@
             var maxType = math.min(4, waveEnergy);
             var type = TD.wave % 5 === 0 ? 5 : math.randomInt(1, maxType + 1);
             waveEnergy -= type;
+            // TODO: why don't use var creep = Object.assign({}, baseEnemyInfo, { type: type }); ?
             var creep = {};
             Object.assign(creep, baseEnemyInfo);
             creep.type = type;

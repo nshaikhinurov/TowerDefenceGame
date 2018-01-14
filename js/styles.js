@@ -1,3 +1,7 @@
+/*
+ * TODO: to create spaces for styles they'are applied to
+ * i.e. enemies, towers (object-oriented); colors, paddings and margins (type-oriented)
+ */
 var styles = {
     worldPadding: 80,
     wayWidth: 50,
