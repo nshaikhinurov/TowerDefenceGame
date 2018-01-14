@@ -1,3 +1,5 @@
+var areCrossesEnabled = false;
+
 var nextWaveTimeout = 1;
 var baseTowerInfo = {
     range: 75,
@@ -16,11 +18,6 @@ var enemyN = 0;
 
 var r = 1, R = 3; // dot radiuses
 
-function initEnemies() {
-    TD.enemies = game.add.group();
-
-}
-
 function initCastle() {
     var castle = game.add.sprite(wayPoints[wayPoints.length - 1].x, wayPoints[wayPoints.length - 1].y, textures.castle);
     castle.anchor.set(0.5);
@@ -33,7 +30,7 @@ function initCastle() {
         },
         set: function (value) {
             hp = value;
-            this.HPText.setText(this.hp);
+            this.HPText.setText("Castle HP:" + this.hp.toFixed());
         }
     });
     TD.castle = castle;
@@ -51,6 +48,12 @@ function initTowers() {
         game.physics.enable(newTower, Phaser.Physics.ARCADE);
         newTower.name = 'Tower ' + towerN++;
         Object.assign(newTower, baseTowerInfo);
+
+        if (areCrossesEnabled) {
+            var cross = game.add.sprite(newTower.x, newTower.y, textures.cross);
+            cross.anchor.set(0.5);
+            newTower.tcross = cross;
+        }
         towers.add(newTower);
     }
     TD.towers = towers;
@@ -104,6 +107,37 @@ function initSidebar() {
     }
 }
 
+function initEnemy(x, y, info) {
+    var bmpD;
+    setSize();
+    var key = info.type + "_" + info.size;
+    if (textures.enemies[key])
+        bmpD = textures.enemies[key];
+    else {
+        var color = 'rgba(255,157,13,1)';
+        bmpD = game.add.bitmapData(info.size, info.size);
+        bmpD.circle(info.size / 2, info.size / 2, info.size / 2, color);
+        textures.enemies[key] = bmpD;
+    }
+
+    var sprite = game.add.sprite(x, y, bmpD);
+    sprite.anchor.set(0.5);
+    Object.assign(sprite, info);
+    sprite.name = "Enemy " + TD.wave + '.' + enemyN++;
+    return sprite;
+
+    function setSize() {
+        var size = math.floor(baseEnemyInfo.size * math.sqrt(info.hp / baseEnemyInfo.hp));
+        if (isOdd(size))
+            size++;
+        info.size = size;
+
+        function isOdd(x) {
+            return math.mod(x, 2) != 0;
+        }
+    }
+}
+
 function createTextures() {
     // Waypoints
     var color = 'rgba(0,0,0,0.5)';
@@ -142,19 +176,31 @@ function createTextures() {
     textures.tower.circle(baseTowerInfo.range, baseTowerInfo.range, baseTowerInfo.range, 'rgba(76,178,255,0.1)');
     textures.tower.circle(baseTowerInfo.range, baseTowerInfo.range, baseTowerInfo.size / 2, 'rgba(76,178,255,1)');
 
-
     // GoldCoin
     textures.coinSize = 15;
     var goldColor = "#ffcf40";
     textures.gold = game.add.bitmapData(textures.coinSize, textures.coinSize);
     textures.gold.circle(textures.coinSize / 2, textures.coinSize / 2, textures.coinSize / 2, goldColor);
 
-    // Enemy
-    textures.enemy = game.add.bitmapData(baseEnemyInfo.size, baseEnemyInfo.size);
-    textures.enemy.circle(baseEnemyInfo.size / 2, baseEnemyInfo.size / 2, baseEnemyInfo.size / 2, 'rgba(255,157,13,1)');
+    // Lifebar
+    /*color = '#38bc00';
+    textures.lifebar = game.add.bitmapData(styles.lifebarWidth, styles.lifebarHeight);
+    textures.lifebar.rect(0, 0, styles.lifebarWidth, styles.lifebarHeight,
+     color);*/
+    color = '#e8720c';
+    textures.lifebar = game.add.bitmapData(256, 256);
+    textures.lifebar.circle(128, 128, 128, color);
+
+    // Cross
+    color = '#000';
+    textures.cross = game.add.bitmapData(styles.crossSize, styles.crossSize);
+    textures.cross.circle(styles.crossSize / 2, styles.crossSize / 2, styles.crossSize / 2, color);
 
     // Sidebar
     textures.sidebar = game.add.bitmapData(styles.sidebarWidth, game.world.height);
     color = '#fff';
     textures.sidebar.rect(0, 0, styles.sidebarWidth, game.world.height, color);
+
+    // Enemies
+    textures.enemies = {};
 }

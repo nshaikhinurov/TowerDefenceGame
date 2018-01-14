@@ -18,7 +18,11 @@
 
 <body>
 <script>
-    var game = new Phaser.Game(1280, 720, Phaser.AUTO, null, {preload: preload, create: create, update: update});
+    var game = new Phaser.Game(1280, 720, Phaser.AUTO, null, {
+        preload: preload,
+        create: create,
+        update: update
+    });
 
     var TD = new function () {
         var gold;
@@ -30,7 +34,7 @@
             },
             set: function (value) {
                 gold = value;
-                this.goldText.setText(this.gold);
+                this.goldText.setText(this.gold.toFixed());
             }
         });
 
@@ -73,7 +77,6 @@
         initWay();
         initCastle();
         initTowers();
-        initEnemies();
         initSidebar();
         TD.init();
         startNextWave();
@@ -81,11 +84,14 @@
 
     function update() {
         game.physics.arcade.overlap(TD.towers, TD.enemies, attackEnemies, checkTrueOverlapping);
+        updateEnemyLifebars();
+        updateTargets();
         if (isBuildingTower) {
             buildingTower.x = game.input.x;
             buildingTower.y = game.input.y;
-            if (game.input.activePointer.isDown)
+            if (game.input.activePointer.isDown) {
                 activateTower(buildingTower);
+            }
         }
     }
 
@@ -105,12 +111,42 @@
         if (tower.focusedEnemy !== enemy)
             return;
         enemy.hp -= tower.attack;
-        console.log(enemy.name + ' attacked by ' + tower.name + ': -' + tower.attack);
+        console.log(enemy.name + ' attacked by ' + tower.name + ': -' +
+            tower.attack);
         if (enemy.hp <= 0) {
-            TD.gold += enemy.size / 4;
+            TD.gold += enemy.fullHp * 0.05;
             tower.focusedEnemy = null;
             killEnemy(enemy);
             console.log(enemy.name + ' killed by ' + tower.name);
+        }
+    }
+
+    function updateEnemyLifebars() {
+        for (var i = 0; i < TD.enemies.total; i++) {
+            var enemy = TD.enemies.getChildAt(i);
+            var lifebar = enemy.lifebar;
+            lifebar.x = enemy.x;
+            lifebar.y = enemy.y;
+            lifebar.width = lifebar.height = (enemy.size * 0.5) * enemy.hp /
+                enemy.fullHp;
+        }
+    }
+
+    function updateTargets() {
+        for (var i = 0; i < TD.towers.total; i++) {
+            var tower = TD.towers.getChildAt(i);
+            if (tower.focusedEnemy) {
+                if (tower.focusedEnemy.alive)
+                    checkTrueOverlapping(tower, tower.focusedEnemy);
+                else
+                    tower.focusedEnemy = null;
+            }
+            if (areCrossesEnabled) {
+                var cross = tower.tcross;
+                cross.x = tower.focusedEnemy ? tower.focusedEnemy.x -
+                    baseEnemyInfo.size / 2 : tower.x;
+                cross.y = tower.focusedEnemy ? tower.focusedEnemy.y : tower.y;
+            }
         }
     }
 
@@ -118,9 +154,14 @@
         enemy.focusable = false;
         enemy.moveTween.stop();
         var killTween = game.add.tween(enemy);
-        killTween.to({width: 2 * enemy.size, height: 2 * enemy.size, alpha: 0}, 200, Phaser.Easing.Linear.None);
+        killTween.to({
+            width: 2 * enemy.size,
+            height: 2 * enemy.size,
+            alpha: 0
+        }, 200, Phaser.Easing.Linear.None);
         killTween.onComplete.addOnce(function () {
             enemy.kill();
+            enemy.lifebar.kill();
             TD.enemies.remove(enemy);
             if (!TD.enemies.total)
                 setTimeout(startNextWave, 1000 * nextWaveTimeout);
@@ -129,7 +170,7 @@
     }
 
     function attackCastle(enemy) {
-        console.log(enemy.name + ': '+ enemy.hp);
+        console.log(enemy.name + ': ' + enemy.hp);
         TD.castle.hp -= enemy.hp;
         killEnemy(enemy);
         if (TD.castle.hp <= 0)
@@ -138,23 +179,27 @@
 
     function startNextWave() {
         TD.wave++;
-        var enemiesCount = 2 + TD.wave;
-        /*if (TD.wave % 5 === 0) {
+        baseEnemyInfo.speed *= 1.05;
+        var waveEnergy = 2 + TD.wave;
+        TD.enemies = game.add.group();
 
-        } else {*/
-            for (var i = 0; i < enemiesCount; i++) {
-                var newEnemy = game.add.sprite(styles.sidebarWidth + styles.worldPadding, -styles.worldPadding - i * (baseEnemyInfo.size / 2 + baseEnemyInfo.margin), textures.enemy);
-                newEnemy.anchor.set(0.5);
-                game.physics.enable(newEnemy, Phaser.Physics.ARCADE);
+        for (var i = 0; waveEnergy > 0; i++) {
+            var creepInfo = generateCreep();
 
-                Object.assign(newEnemy, baseEnemyInfo);
+            var newEnemy = initEnemy(styles.sidebarWidth + styles.worldPadding,
+                -styles.worldPadding - i * (creepInfo.size / 2 +
+                creepInfo.margin), creepInfo);
+            game.physics.enable(newEnemy, Phaser.Physics.ARCADE);
 
-                newEnemy.name = "Enemy " + TD.wave + '.' + enemyN++;
-                TD.enemies.add(newEnemy);
+            TD.enemies.add(newEnemy);
 
-                move(newEnemy);
-            }
-        //}
+            var lifebar = game.add.sprite(0, 0, textures.lifebar);
+            lifebar.anchor.set(0.5);
+            newEnemy.lifebar = lifebar;
+
+            move(newEnemy);
+        }
+
         enemyN = 0;
 
         function move(enemy, i) {
@@ -166,12 +211,46 @@
             var moveTween = game.add.tween(enemy);
             enemy.moveTween = moveTween;
             moveTween.to({x: wayPoints[i].x, y: wayPoints[i].y},
-                game.physics.arcade.distanceBetween(enemy, wayPoints[i]) / enemy.speed * 1000,
+                game.physics.arcade.distanceBetween(enemy, wayPoints[i]) /
+                enemy.speed * 1000,
                 Phaser.Easing.Linear.None);
             moveTween.onComplete.addOnce(function () {
                 move(enemy, ++i)
             }, this);
             moveTween.start();
+        }
+
+        function generateCreep() {
+            var maxType = math.min(4, waveEnergy);
+            var type = TD.wave % 5 === 0 ? 5 : math.randomInt(1, maxType + 1);
+            waveEnergy -= type;
+            var creep = {};
+            Object.assign(creep, baseEnemyInfo);
+            creep.type = type;
+            switch (type) {
+                case 2:
+                    creep.hp *= 2;
+                    creep.speed /= 1.5;
+                    break;
+                case 3 :
+                    creep.hp /= 1.5;
+                    creep.speed *= 2.5;
+                    break;
+                case 4 :
+                    creep.hp *= 5;
+                    creep.speed /= 1.5;
+                    break;
+                case 5:
+                    waveEnergy += type;
+                    creep.hp *= waveEnergy * 1.5 + (math.sqrt(waveEnergy) - 1 ) / creep.speed * 2;
+                    creep.speed /= waveEnergy / 2.5;
+                    waveEnergy = 0;
+                    break;
+
+            }
+            creep.hp = math.round(creep.hp);
+            creep.fullHp = creep.hp;
+            return creep;
         }
     }
 
@@ -189,6 +268,11 @@
     function activateTower(tower) {
         isBuildingTower = false;
         Object.assign(tower, baseTowerInfo);
+        if (areCrossesEnabled) {
+            var cross = game.add.sprite(tower.x, tower.y, textures.cross);
+            cross.anchor.set(0.5);
+            tower.tcross = cross;
+        }
         TD.towers.add(tower);
     }
 
